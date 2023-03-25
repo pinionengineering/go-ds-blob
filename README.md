@@ -8,7 +8,7 @@ datastore uses the [Go Cloud Development Kit](https://github.com/google/go-cloud
 blob library as the storage backend. Multiple cloud providers are supported through this library.
 
 
-## Why should you use this datastore?
+## Why should I use this datastore?
 
  * I already run a go-datastore application and I want to make management easier
  * I am paying for empty block storage, e.g. badgerdb-on-ebs
@@ -43,7 +43,7 @@ d, _ := New(context.Background(), bucket)
 
 ## disclaimer
 
-blob do not make a perfect datastore. Many blob-store services are eventually-consistent. Compared to other
+blobstores do not make a perfect datastore. Many blob-store services are eventually-consistent. Compared to other
 databases, the query api is typically basic, and it's difficult to support all datastore features well.
 However, while they may lack the rich query features often found in RDBMS or Document databases, they are
 often a magnitude less expensive to operate, and performant at high scale.
