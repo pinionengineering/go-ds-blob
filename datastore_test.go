@@ -18,7 +18,7 @@ func TestSuiteCloudDatastore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cds := NewWithBucket(bucket)
+	cds := NewWithBucket(bucket, "memory")
 
 	t.Run("basic operations", func(t *testing.T) {
 		dstest.SubtestBasicPutGet(t, cds)

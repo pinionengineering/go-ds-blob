@@ -25,5 +25,5 @@ func NewGCPWithCredentials(ctx context.Context, creds *google.Credentials, bucke
 	if err != nil {
 		return nil, err
 	}
-	return NewWithBucket(b), nil
+	return NewWithBucket(b, bucketName), nil
 }

@@ -25,7 +25,8 @@ var (
 // implements ipfs/go-datastore CloudDatastore interface
 // uses google/go-cloud blob.Bucket to store data
 type CloudDatastore struct {
-	bucket *blob.Bucket
+	bucket     *blob.Bucket
+	bucketName string
 }
 
 // Create a new CloudDatastore using a bucket name and default parameters
@@ -46,13 +47,14 @@ func New(ctx context.Context, bucketName string) (*CloudDatastore, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewWithBucket(bucket), nil
+	return NewWithBucket(bucket, bucketName), nil
 }
 
 // NewDatastore returns a new Datastore based on a google/go-cloud blob.Bucket
-func NewWithBucket(bucket *blob.Bucket) *CloudDatastore {
+func NewWithBucket(bucket *blob.Bucket, bucketName string) *CloudDatastore {
 	return &CloudDatastore{
-		bucket: bucket,
+		bucket:     bucket,
+		bucketName: bucketName,
 	}
 }
 

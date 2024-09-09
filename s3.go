@@ -18,5 +18,5 @@ func NewS3WithConfig(ctx context.Context, bucketName string, cfg aws.Config) (*C
 	if err != nil {
 		return nil, err
 	}
-	return NewWithBucket(b), nil
+	return NewWithBucket(b, bucketName), nil
 }
