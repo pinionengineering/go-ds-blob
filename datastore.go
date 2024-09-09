@@ -17,9 +17,7 @@ const (
 )
 
 var (
-	_ datastore.Datastore         = (*CloudDatastore)(nil)
-	_ datastore.BatchingFeature   = (*CloudDatastore)(nil)
-	_ datastore.PersistentFeature = (*CloudDatastore)(nil)
+	_ datastore.Datastore = (*CloudDatastore)(nil)
 )
 
 // implements ipfs/go-datastore CloudDatastore interface
@@ -137,34 +135,6 @@ func (cds *CloudDatastore) Query(ctx context.Context, q query.Query) (query.Resu
 	}
 	go iterateQuery(ctx, cds.bucket, ch, opts, q)
 	return query.ResultsWithChan(q, ch), nil
-}
-
-// Batch returns a Batch object for batching operations
-// this is required for the batching feature
-func (cds *CloudDatastore) Batch(ctx context.Context) (datastore.Batch, error) {
-	return datastore.NewBasicBatch(cds), nil
-}
-
-// DiskUsage returns the total size of the datastore
-// this is required for the persistent feature
-// this is not a cheap operation. It iterates over the entire bucket.
-func (cds *CloudDatastore) DiskUsage(ctx context.Context) (uint64, error) {
-	var size uint64
-	li := cds.bucket.List(nil)
-	for {
-		obj, err := li.Next(ctx)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return 0, err
-		}
-		if obj.IsDir {
-			continue
-		}
-		size += uint64(obj.Size)
-	}
-	return size, nil
 }
 
 // this is a helper function for the Query method.
