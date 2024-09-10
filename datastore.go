@@ -2,7 +2,6 @@ package dsblob
 
 import (
 	"context"
-	"fmt"
 	"io"
 
 	"gocloud.dev/blob"
@@ -10,10 +9,6 @@ import (
 
 	"github.com/ipfs/go-datastore"
 	"github.com/ipfs/go-datastore/query"
-)
-
-const (
-	listMax = 1000
 )
 
 var (
@@ -123,74 +118,49 @@ func (cds *CloudDatastore) Sync(ctx context.Context, prefix datastore.Key) error
 }
 
 // Query searches the Datastore
-// This implementation does not support filters or orders
+// Unfortunately, orders and filters are done locally in ths implementation
 func (cds *CloudDatastore) Query(ctx context.Context, q query.Query) (query.Results, error) {
-	if q.Orders != nil || q.Filters != nil {
-		return nil, fmt.Errorf("ds-blob: filters or orders are not supported")
-	}
+	cleaned := datastore.NewKey(q.Prefix)
 
-	ch := make(chan query.Result)
-	opts := &blob.ListOptions{
-		Prefix: q.Prefix,
-	}
-	go iterateQuery(ctx, cds.bucket, ch, opts, q)
-	return query.ResultsWithChan(q, ch), nil
-}
-
-// this is a helper function for the Query method.
-// iterates over bucket with ListOptions
-// the first *offset* results are skipped.
-// the first *limit* results after offset are output to the provided channel
-func iterateQuery(ctx context.Context, bkt *blob.Bucket, ch chan<- query.Result, opts *blob.ListOptions, q query.Query) {
-
-	offset := q.Offset
-	limit := q.Limit
-
-	defer close(ch)
-	li := bkt.List(opts)
-	// skip up to the offset
-	for offset > 0 {
-		_, err := li.Next(ctx)
-		if err == io.EOF {
-			return
-		}
-		if err != nil {
-			ch <- query.Result{Error: err}
-			return
-		}
-		offset--
-	}
-	// output Results up to the limit
-	for q.Limit == 0 || limit > 0 {
-		obj, err := li.Next(ctx)
-		if err == io.EOF {
-			return
-		}
-		if err != nil {
-			ch <- query.Result{Error: err}
-			return
-		}
-		if obj.IsDir {
-			continue
-		}
-		res := query.Result{Entry: query.Entry{Key: obj.Key}}
-		if q.ReturnsSizes {
-			res.Entry.Size = int(obj.Size)
-		}
-		if !q.KeysOnly {
-			r, err := bkt.NewReader(ctx, obj.Key, nil)
-			if err != nil {
-				ch <- query.Result{Error: err}
-				return
+	bktlist := cds.bucket.List(&blob.ListOptions{
+		Prefix:    cleaned.String(),
+		Delimiter: "",
+	})
+	bktCtx, bktCancel := context.WithCancel(ctx)
+	iter := query.Iterator{
+		Next: func() (query.Result, bool) {
+			qres := query.Result{}
+			bktres, err := bktlist.Next(bktCtx)
+			if err == io.EOF {
+				return qres, false
 			}
-			res.Value, err = io.ReadAll(r)
-			r.Close()
 			if err != nil {
-				ch <- query.Result{Error: err}
-				return
+				qres.Error = err
+				return qres, false
 			}
-		}
-		ch <- res
-		limit--
+			qres.Key = bktres.Key
+			qres.Size = int(bktres.Size)
+			if !q.KeysOnly {
+				rdr, err := cds.bucket.NewReader(bktCtx, bktres.Key, nil)
+				if err != nil {
+					qres.Error = err
+					return qres, false
+				}
+				defer rdr.Close()
+				val, err := io.ReadAll(rdr)
+				if err != nil {
+					qres.Error = err
+					return qres, false
+				}
+				qres.Value = val
+			}
+			return qres, true
+		},
+		Close: func() error {
+			bktCancel()
+			return nil
+		},
 	}
+
+	return query.NaiveQueryApply(q, query.ResultsFromIterator(q, iter)), nil
 }

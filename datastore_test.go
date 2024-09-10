@@ -2,34 +2,26 @@ package dsblob
 
 import (
 	"context"
+	"fmt"
 	"testing"
 
 	"gocloud.dev/blob"
+	_ "gocloud.dev/blob/gcsblob"
 	_ "gocloud.dev/blob/memblob"
 
 	dstest "github.com/ipfs/go-datastore/test"
 )
 
 func TestSuiteCloudDatastore(t *testing.T) {
-	//
-	bucketName := "mem://test-bucket"
-	bucket, err := blob.OpenBucket(context.Background(), bucketName)
-	if err != nil {
-		t.Fatal(err)
+	ctx := context.Background()
+
+	for i, subtest := range dstest.BasicSubtests {
+		// bkt, _ := blob.OpenBucket(ctx, "gs://dsblobtest")
+		bkt, _ := blob.OpenBucket(ctx, "mem://")
+		name := fmt.Sprintf("test_%d", i)
+		ds := NewWithBucket(bkt, name)
+		t.Run(name, func(ti *testing.T) {
+			subtest(ti, ds)
+		})
 	}
-
-	cds := NewWithBucket(bucket, "memory")
-
-	t.Run("basic operations", func(t *testing.T) {
-		dstest.SubtestBasicPutGet(t, cds)
-	})
-	t.Run("not found operations", func(t *testing.T) {
-		dstest.SubtestNotFounds(t, cds)
-	})
-	t.Run("many puts and gets, query", func(t *testing.T) {
-		dstest.SubtestManyKeysAndQuery(t, cds)
-	})
-	t.Run("return sizes", func(t *testing.T) {
-		dstest.SubtestReturnSizes(t, cds)
-	})
 }
